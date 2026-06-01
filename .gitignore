@@ -6,3 +6,7 @@ node_modules/
 .tmp/
 dist/
 build/
+.next/
+.storage/
+*.tsbuildinfo
+coverage/
