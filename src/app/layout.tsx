@@ -1,0 +1,27 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "AI Video Maker",
+  description: "사진이나 짧은 영상을 올리면 AI가 릴스용 영상을 만들어줍니다.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="ko">
+      <body>
+        <div className="app-shell">{children}</div>
+      </body>
+    </html>
+  );
+}
