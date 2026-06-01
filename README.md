@@ -484,6 +484,14 @@ Preserve the original people, places, and mood.
 
 AI provider의 output URL은 임시일 수 있으므로 완료 즉시 다운로드해 자체 storage에 저장합니다.
 
+## 상세 문서
+
+- [PRD](docs/PRD.md) — 사용자, 문제, 범위, 성공 기준
+- [Architecture Spec](docs/ARCHITECTURE.md) — 데이터 모델, API, storage, queue, provider adapter
+- [Provider Evaluation](docs/PROVIDER_EVALUATION.md) — fal.ai, Replicate, Runway, Luma, Sora, Veo, ComfyUI 비교
+- [UX Flows](docs/UX_FLOWS.md) — 화면 흐름, 카피, edge case, regeneration UX
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) — 단계별 구현 순서와 리스크
+
 ## 참고 링크
 
 - fal.ai Queue: https://fal.ai/docs/model-endpoints/queue
