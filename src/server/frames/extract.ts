@@ -12,6 +12,10 @@ const DARK_THRESHOLD = 24;
 export type ExtractOptions = {
   intervalSeconds?: number;
   maxFrames?: number;
+  // 추출 구간. startSeconds(기본 0)부터 windowSeconds 길이만 추출.
+  // 둘 다 생략하면 기존처럼 영상 전체에서 추출한다.
+  startSeconds?: number;
+  windowSeconds?: number;
 };
 
 // 비디오 길이(초). ffprobe 실패 시 null.
@@ -75,6 +79,8 @@ export async function extractFrames(
 ): Promise<Buffer[]> {
   const intervalSeconds = opts.intervalSeconds ?? 2;
   const maxFrames = opts.maxFrames ?? 12;
+  const startSeconds = opts.startSeconds ?? 0;
+  const windowSeconds = opts.windowSeconds;
 
   let dir: string | null = null;
   try {
@@ -82,10 +88,12 @@ export async function extractFrames(
     const input = path.join(dir, "in.mp4");
     await writeFile(input, videoData);
 
-    await execFileAsync("ffmpeg", [
-      "-y",
-      "-i",
-      input,
+    const args = ["-y", "-i", input];
+    // 구간 추출: -i 뒤(출력 시킹)에 -ss/-t 를 붙여 프레임 단위로 정확히 [start, start+window] 만 디코드.
+    // 구간 옵션이 없으면 인자를 추가하지 않아 기존 전체 추출 동작이 그대로 유지된다.
+    if (startSeconds > 0) args.push("-ss", String(startSeconds));
+    if (windowSeconds !== undefined) args.push("-t", String(windowSeconds));
+    args.push(
       "-vf",
       `fps=1/${intervalSeconds},mpdecimate=hi=768:lo=384:frac=0.33,scale=512:-1`,
       "-vsync",
@@ -95,7 +103,8 @@ export async function extractFrames(
       "-q:v",
       "3",
       path.join(dir, "f_%03d.jpg"),
-    ]);
+    );
+    await execFileAsync("ffmpeg", args);
 
     const files = (await readdir(dir))
       .filter((f) => f.startsWith("f_") && f.endsWith(".jpg"))

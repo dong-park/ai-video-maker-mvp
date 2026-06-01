@@ -143,3 +143,16 @@ export async function uploadVideoAndExtract(
     }),
   );
 }
+
+// "샘플로 해보기": 번들 샘플 영상으로 데모 시작 (10초 구간 시작점 지정).
+export async function startSampleDemo(
+  startSeconds: number,
+): Promise<{ jobId: string }> {
+  return jsonOrThrow<{ jobId: string }>(
+    await fetch("/api/videos/sample-demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startSeconds }),
+    }),
+  );
+}

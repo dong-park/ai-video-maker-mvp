@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { buildPrompt } from "@/lib/prompt";
 import type { JobResponse } from "@/lib/api";
 import type {
@@ -10,7 +12,12 @@ import type {
   Style,
   VideoJob,
 } from "@/lib/types";
-import { MAX_VIDEO_SECONDS } from "@/lib/config";
+import {
+  MAX_VIDEO_SECONDS,
+  SAMPLE_MAX_START,
+  SAMPLE_WINDOW_SECONDS,
+} from "@/lib/config";
+import { newId } from "@/lib/ids";
 import {
   createGeneratedOutput,
   createMediaAsset,
@@ -137,7 +144,12 @@ export function selectFrames(jobId: string, selectedIds: string[]): VideoJob {
 // 비디오 자산에서 프레임을 추출해 video job 을 만든다 (Phase 2).
 export async function extractFramesForVideo(
   videoAssetId: string,
-  opts: { intervalSeconds?: number; maxFrames?: number } = {},
+  opts: {
+    intervalSeconds?: number;
+    maxFrames?: number;
+    startSeconds?: number;
+    windowSeconds?: number;
+  } = {},
 ): Promise<VideoJob> {
   const asset = getMediaAsset(videoAssetId);
   if (!asset || asset.type !== "input_video") {
@@ -217,6 +229,60 @@ export async function extractFramesForVideo(
   }
 
   return updateVideoJob(job.id, { status: "ready_to_generate", progress: 0 })!;
+}
+
+// 번들된 데모 샘플 영상의 서버측 경로 (public/ 하위).
+const SAMPLE_VIDEO_PATH = path.join(
+  process.cwd(),
+  "public",
+  "samples",
+  "sample-bbb-30s.mp4",
+);
+
+// "샘플로 해보기": 번들 샘플 영상을 업로드한 것처럼 input_video 자산으로 등록하고,
+// 선택한 시작점 기준 [start, start+10s] 구간만 프레임을 추출해 video job 을 만든다.
+export async function startSampleDemo(startSeconds: number): Promise<VideoJob> {
+  let videoData: Buffer;
+  try {
+    videoData = await readFile(SAMPLE_VIDEO_PATH);
+  } catch {
+    throw new ServiceError("invalid_input", "샘플 영상을 찾을 수 없습니다.");
+  }
+
+  // 기존 업로드 흐름과 동일하게 스토리지에 넣고 input_video 자산을 만든다 (소스만 번들 파일).
+  const storage = getStorage();
+  const assetId = newId("asset");
+  const key = `uploads/videos/${assetId}.mp4`;
+  await storage.putObject(key, videoData, "video/mp4");
+
+  const asset = createMediaAsset({
+    id: assetId,
+    userId: null,
+    jobId: null,
+    type: "input_video",
+    originalFilename: "sample-bbb-30s.mp4",
+    mimeType: "video/mp4",
+    storageUrl: storage.publicUrl(key),
+    width: null,
+    height: null,
+    durationSeconds: null,
+    fileSizeBytes: videoData.length,
+    sortOrder: 0,
+    selected: true,
+    metadataJson: { storageKey: key, uploaded: true, sample: true },
+  });
+
+  const start = clampSampleStart(startSeconds);
+  return extractFramesForVideo(asset.id, {
+    startSeconds: start,
+    windowSeconds: SAMPLE_WINDOW_SECONDS,
+  });
+}
+
+// 시작점을 데모 허용 범위 [0, SAMPLE_MAX_START] 정수로 보정한다.
+function clampSampleStart(seconds: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.min(Math.max(Math.round(seconds), 0), SAMPLE_MAX_START);
 }
 
 // provider 에 생성 요청 제출. prompt 는 서버측에서 빌드한다.

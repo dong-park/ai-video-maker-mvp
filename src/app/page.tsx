@@ -6,9 +6,12 @@ import {
   MAX_IMAGES,
   IMAGE_MIME_TYPES,
   VIDEO_MIME_TYPES,
+  SAMPLE_MAX_START,
+  SAMPLE_WINDOW_SECONDS,
 } from "@/lib/config";
 import {
   createImagesJob,
+  startSampleDemo,
   uploadMany,
   uploadVideoAndExtract,
   type UploadedAsset,
@@ -22,6 +25,7 @@ export default function UploadPage() {
   const [assets, setAssets] = useState<UploadedAsset[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sampleStart, setSampleStart] = useState(0);
   const imageInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
 
@@ -82,6 +86,18 @@ export default function UploadPage() {
       router.push(`/jobs/${jobId}/review`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "다음 단계로 이동하지 못했습니다.");
+      setBusy(false);
+    }
+  }
+
+  async function onTrySample() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { jobId } = await startSampleDemo(sampleStart);
+      router.push(`/jobs/${jobId}/review`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "샘플을 시작하지 못했습니다.");
       setBusy(false);
     }
   }
@@ -172,6 +188,32 @@ export default function UploadPage() {
           <p className="hint">MP4 · MOV, 60초 / 100MB 이하. 업로드 후 프레임을 추출합니다.</p>
         </>
       )}
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <p className="section-title" style={{ marginTop: 0 }}>
+          처음이신가요?
+        </p>
+        <p className="hint" style={{ marginTop: 0 }}>
+          내 파일 없이 샘플 영상으로 바로 만들어볼 수 있어요. 10초 구간의 시작점을
+          골라 시작하세요.
+        </p>
+        <label className="hint" htmlFor="sample-start">
+          구간: {sampleStart}초 ~ {sampleStart + SAMPLE_WINDOW_SECONDS}초
+        </label>
+        <input
+          id="sample-start"
+          type="range"
+          min={0}
+          max={SAMPLE_MAX_START}
+          step={1}
+          value={sampleStart}
+          onChange={(e) => setSampleStart(Number(e.target.value))}
+          style={{ width: "100%", margin: "8px 0 14px" }}
+        />
+        <button className="btn btn-secondary" disabled={busy} onClick={onTrySample}>
+          {busy ? "준비 중…" : "샘플로 해보기 →"}
+        </button>
+      </div>
 
       {tab === "images" && (
         <div className="bottom-cta">

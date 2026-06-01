@@ -26,6 +26,8 @@ npm run dev          # http://localhost:3000
 
 브라우저에서 `http://localhost:3000` 접속 → 이미지 1~6장 업로드 → 스타일/비율/길이 선택 → 생성 → 결과 MP4 재생/다운로드.
 
+내 파일이 없다면 업로드 화면의 **"샘플로 해보기"** 카드에서 번들 데모 영상(`public/samples/sample-bbb-30s.mp4`)으로 바로 시작할 수 있습니다 — 10초 구간의 시작점(0~20초)을 고르면 해당 구간에서만 프레임을 추출해 동일한 리뷰→스타일→생성 플로우로 이어집니다.
+
 키가 없으면 MockProvider 가 번들된 샘플 영상(`public/mock/sample.mp4`)을 결과로 돌려주고, 그 파일을 자체 스토리지(`.storage/`)로 복사해 `/api/files/...` URL 로 서빙합니다. 즉 **provider URL 에 의존하지 않습니다.**
 
 ### 검증 게이트
@@ -59,7 +61,8 @@ npm run build        # next build
 | POST | `/api/video-jobs/{jobId}/generate` | 생성 시작 |
 | GET | `/api/video-jobs/{jobId}` | 상태 조회(폴링) |
 | POST | `/api/video-jobs/{jobId}/regenerate` | 재생성 |
-| POST | `/api/videos/extract-frames` | 비디오 프레임 추출 |
+| POST | `/api/videos/extract-frames` | 비디오 프레임 추출 (옵션 `startSeconds`/`windowSeconds` 로 구간 추출) |
+| POST | `/api/videos/sample-demo` | 번들 샘플로 데모 시작 (`startSeconds` 기준 10초 구간) |
 | POST | `/api/webhooks/fal` | provider webhook |
 | GET | `/api/files/{...key}` | (로컬) 스토리지 서빙 |
 
