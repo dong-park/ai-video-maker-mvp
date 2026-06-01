@@ -6,6 +6,79 @@
 
 사용자가 **이미지 여러 장** 또는 **짧은 비디오**를 올리면, 서비스가 핵심 장면을 추출하고 AI 영상 모델을 호출해 **5~10초짜리 릴스/광고/몽타주 영상**을 생성합니다.
 
+---
+
+## 실행 방법 (MVP 구현)
+
+Next.js(App Router) + TypeScript 로 구현된 MVP 입니다. **API 키 없이도** 전체 플로우가 동작합니다 — provider 는 MockProvider(고정 샘플 MP4 반환), 스토리지는 로컬 파일 폴백, DB 는 in-memory 폴백으로 자동 분기됩니다.
+
+### 요구 사항
+
+- Node.js 20+ (개발/검증은 Node 22 기준)
+- `ffmpeg` / `ffprobe` (비디오 프레임 추출 및 썸네일 생성에 사용. macOS: `brew install ffmpeg`)
+
+### 빠른 시작
+
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
+
+브라우저에서 `http://localhost:3000` 접속 → 이미지 1~6장 업로드 → 스타일/비율/길이 선택 → 생성 → 결과 MP4 재생/다운로드.
+
+키가 없으면 MockProvider 가 번들된 샘플 영상(`public/mock/sample.mp4`)을 결과로 돌려주고, 그 파일을 자체 스토리지(`.storage/`)로 복사해 `/api/files/...` URL 로 서빙합니다. 즉 **provider URL 에 의존하지 않습니다.**
+
+### 검증 게이트
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run test         # vitest (단위 + end-to-end, ffmpeg 사용)
+npm run build        # next build
+```
+
+### 화면 흐름 (IA)
+
+```
+/                       업로드 (이미지 / 비디오 탭)
+/jobs/:jobId/review     이미지 순서·삭제 / 비디오 프레임 선택
+/jobs/:jobId/style      스타일 5종 + 비율 3종 + 길이 2종
+/jobs/:jobId/generating 진행 상태 폴링 (pseudo progress)
+/jobs/:jobId/result     결과 재생 / 다운로드 / 재생성
+```
+
+### 주요 API
+
+| Method | Path | 설명 |
+|---|---|---|
+| POST | `/api/assets/upload-url` | 업로드 타겟 + asset 생성 |
+| PUT | `/api/assets/{assetId}/blob` | (로컬) 파일 업로드 |
+| POST | `/api/video-jobs` | 이미지 자산으로 job 생성 |
+| PATCH | `/api/video-jobs/{jobId}/assets` | 이미지 순서/삭제 |
+| PATCH | `/api/video-jobs/{jobId}/frames` | 프레임 선택 |
+| POST | `/api/video-jobs/{jobId}/generate` | 생성 시작 |
+| GET | `/api/video-jobs/{jobId}` | 상태 조회(폴링) |
+| POST | `/api/video-jobs/{jobId}/regenerate` | 재생성 |
+| POST | `/api/videos/extract-frames` | 비디오 프레임 추출 |
+| POST | `/api/webhooks/fal` | provider webhook |
+| GET | `/api/files/{...key}` | (로컬) 스토리지 서빙 |
+
+### 실제 연동 (.env 채우기)
+
+`.env.example` 을 `.env.local` 로 복사한 뒤 값을 채우면 자동으로 실제 연동으로 분기됩니다.
+
+```bash
+cp .env.example .env.local
+```
+
+- **fal.ai**: `FAL_KEY` 를 채우면 MockProvider 대신 실제 fal queue API 를 호출합니다. 기본 모델은 9:16 + 5초를 지원하는 Kling image-to-video 이며 `FAL_MODEL` 로 교체할 수 있습니다.
+- **R2 / S3**: `S3_BUCKET` + `S3_ACCESS_KEY_ID` + `S3_SECRET_ACCESS_KEY` 가 모두 있으면 로컬 파일 대신 실제 객체 스토리지를 사용합니다. R2 는 `S3_ENDPOINT` / `S3_PUBLIC_BASE_URL` 을 함께 설정하세요. 업로드는 presigned PUT URL 로 클라이언트가 직접 올립니다.
+- **DB**: 운영 환경에서는 `db/migrations/0001_init.sql`(Postgres/Supabase) 을 적용하세요. 로컬/테스트는 in-memory 폴백으로 동작합니다.
+
+> 구현 범위: PRD 의 In/Out Scope 를 따릅니다. Phase 0~1(이미지→영상) + Phase 2(비디오→프레임→영상)까지 구현되어 있고, 편집기·인증·관리자·결제는 범위 밖입니다.
+
+---
+
 ## 문제 정의
 
 일반 사용자는 영상 편집을 어렵게 느낍니다.
